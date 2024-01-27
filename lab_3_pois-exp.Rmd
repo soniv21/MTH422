@@ -1,0 +1,100 @@
+---
+title: "Poisson-Exponential-qns"
+author: "Soni Verma"
+date: "2024-01-27"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+n <- 10
+theta0 <- 2
+
+set.seed(100)
+
+Y <- rpois(n, lambda = theta0) # simulated data
+
+# prior: Exponential(0.01)
+lambda <- 0.01
+
+# analytical solution
+
+# fill with theoretical posterior mean, median, mode
+
+posmean <- (sum(Y) +1)/(n+lambda)
+posmeadian <- qgamma(0.5, shape = sum(Y) +1, rate = (n+lambda))
+posmode <- 1/sqrt(n+lambda)
+
+# fill with theoretical posterior standard deviation, IQR
+
+possd <- sqrt((sum(Y) +1)/(n+lambda)^2)
+posIQR <- qgamma(0.75, sum(Y) +1, (n+lambda)) - qgamma(0.25, sum(Y) +1, (n+lambda) )
+
+# fill with theoretical 95% posterior equal tail CI
+
+posCI95 <- qgamma(c(0.025,0.95), sum(Y) +1, (n+lambda))
+
+# fill with theoretical 95% HPD CI
+opt <- optimize(function(x){
+  l <- qgamma(c(x, x+0.95),sum(Y) +1, (n+lambda))
+  l[2]- l[1]}, lower =0, upper = 0.05)$minimum
+
+posCI95.HPD <- qgamma(c(opt, opt + 0.95), sum(Y) +1, (n+lambda))
+
+#----------------------------------------------
+# We will now try the same things but instead of doing maths, just using Monte Carlo
+
+# posterior samples
+
+theta.sample <- rgamma(1e4, sum(Y) +1, n+lambda)
+
+# plot the kernel density estimate of the posterior density 
+# along with the true posterior density
+
+approxdens <- density(theta.sample, from = 0)
+plot(approxdens$x, approxdens$y, type = "l")
+lines(approxdens$x, 
+      dgamma(approxdens$x, sum(Y) +1, n+lambda),
+      col = 2)
+
+# fill with posterior mean, median, mode based on Monte Carlo samples
+
+posmean.s <- mean(theta.sample)
+posmeadian.s <- median(theta.sample)
+posmode.s <- approxdens$x[which.max(approxdens$y)]
+
+# fill with posterior standard deviation and IQR based on Monte Carlo samples
+
+possd.s <- sd(theta.sample)
+posIQR.s <- quantile(theta.sample, probs = 0.75) -
+  quantile(theta.sample, probs = 0.25)
+
+
+# fill with posterior equal-tailed 95% CI based on Monte Carlo samples
+
+posCI95.s <- quantile(theta.sample ,c(0.025, 0.95))
+
+# fill with 95% HPD CI based on Monte Carlo samples
+
+ opt.x <- optimize(function(x){
+  l <- quantile(theta.sample, probs = c(x, x + 0.95))
+  l[2] - l[1]}, lower = 0, upper = 0.05)$minimum
+posCI95.HPD.s <- quantile(theta.sample, probs = c(opt.x, opt.x + 0.95))
+
+# compare the analytical and numerical results
+
+table <- cbind(c(posmean, posmeadian, posmode, 
+                 possd, posIQR, posCI95, posCI95.HPD),
+               c(posmean.s, posmeadian.s, posmode.s, 
+                 possd.s, posIQR.s, posCI95.s, posCI95.HPD.s))
+
+colnames(table) <- c("Analytical", "Numerical")
+rownames(table) <- c("Posterior mean", "Posterior median",
+                     "Posterior mode", "Posterior SD",
+                     "Posterior IQR", "Posterior CI lower",
+                     "Posterior CI upper", "Posterior CI-HPD lower",
+                     "Posterior CI-HPD upper")
+table <- as.data.frame(table)
+table
+
+
+```
